@@ -5,6 +5,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, SubmitField
 from wtforms.validators import InputRequired, Length, ValidationError
 from flask_bcrypt import Bcrypt
+from openai import OpenAI
 
 
 app = Flask(__name__)
@@ -48,6 +49,12 @@ class RegisterForm(FlaskForm):
                 "That username already exists. Please choose a different one.")
 
 
+class PromptForm(FlaskForm):
+    prompt = StringField(validators=[InputRequired()], render_kw={"placeholder": "What do you want to learn about?"})
+
+    submit = SubmitField("Submit")
+
+
 class LoginForm(FlaskForm):
     username = StringField(validators=[InputRequired(), Length(
         min=4, max=20)], render_kw={"placeholder": "Username"})
@@ -78,7 +85,19 @@ def login():
 @app.route('/dashboard', methods=['GET', 'POST'])
 @login_required
 def dashboard():
-    return render_template('dashboard.html')
+    form = PromptForm()
+    if form.validate_on_submit():
+        client = OpenAI()
+
+        completion = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": form.prompt},
+        ]
+        )
+
+        print(completion.choices[0].message)
+    return render_template('dashboard.html', form=form)
 
 
 @app.route('/logout', methods=['GET', 'POST'])
